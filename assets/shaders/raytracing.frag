@@ -16,6 +16,37 @@ struct Material {
     vec3 albedo;
 };
 
+vec3 unit_hemisphere(vec3 normal, vec3[] random_table, int table_size, int seed) {
+    vec3 rand_sphere = random_table[seed * 42323 % table_size];
+
+    if (dot(rand_sphere, normal) > 0.0) {
+        return rand_sphere;
+    } else {
+        return -random_sphere;
+    }
+}
+
+vec3 material_scatter(
+    Ray ray, HitRecord hit_record, out vec3 attenuation, out Ray scattered, vec3[] random_table, int table_size, int seed) {
+    vec3 corrected_normal;
+
+    if (dot(ray.direction, hit_record.normal) > 0.0) {
+        corrected_normal = -hit_record.normal;
+    } else {
+        corrected_normal = hit_record.normal;
+    }
+
+    vec3 target = unit_hemisphere();
+
+    //        let vec = self.unit_sphere();
+    //
+    //        return if Vec3::dot(&vec, normal) > 0.0 {
+    //            vec
+    //        } else {
+    //            -vec
+    //        };
+}
+
 vec3 screen_to_world()
 {
     // NORMALISED DEVICE SPACE
@@ -59,16 +90,16 @@ void main() {
     direction
     );
 
-    float t_min = 0.0001;
+    float t_min = 0.001;
     float t_max = 99999.0;
 
-    vec3 albedo = vec3(0.1);
-    bool hit = false;
+    vec3 albedo = vec3(1.0);
     float closest = t_max;
 
     for (int bounce_num = 0; bounce_num < 2; bounce_num++) {
         HitRecord hit_record = default_hit_record();
         Material material;
+        bool hit = false;
 
         for (int i = 0; i < 2; i++) {
             Sphere sphere = spheres[i];
@@ -82,17 +113,18 @@ void main() {
             }
         }
 
-        if (!hit_record.hit && bounce_num == 0) {
-            albedo = vec3(0.01);
+        if (!hit && bounce_num == 0) {
+            albedo = vec3(0.1);
             break;
-        } else if (!hit_record.hit) {
+        } else if (!hit) {
             albedo *= vec3(0.1);
             break;
         }
 
-        vec3 new_direction = normalize(hit_record.normal + random_table[int(direction * 10.0)%table_size]/100.0);
+        vec3 new_direction = normalize(hit_record.normal + random_table[int(direction * 10.0)%table_size]/50.0);
 
         ray = Ray(hit_record.hit_point, new_direction);
+        //        ray = Ray(hit_record.hit_point, hit_record.normal);
 
         albedo *= material.albedo;
     }
