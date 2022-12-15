@@ -60,7 +60,7 @@ void main() {
     );
 
     float t_min = 0.0001;
-    float t_max = 9999.0;
+    float t_max = 99999.0;
 
     vec3 albedo = vec3(0.1);
     bool hit = false;
@@ -85,28 +85,26 @@ void main() {
         if (!hit_record.hit && bounce_num == 0) {
             albedo = vec3(0.01);
             break;
-        }
-
-        else if (!hit_record.hit) {
-            albedo *= vec3(0.01);
+        } else if (!hit_record.hit) {
+            albedo *= vec3(0.1);
             break;
         }
 
-        vec3 new_direction = normalize(hit_record.normal + random_table[int(direction * 1000.0)%table_size]/100.0);
+        vec3 new_direction = normalize(hit_record.normal + random_table[int(direction * 10.0)%table_size]/100.0);
 
         ray = Ray(hit_record.hit_point, new_direction);
 
         albedo *= material.albedo;
     }
-//    if (hit) {
-        o_Target= vec4(
-        albedo,
-        1.0);
-//    }
-//    else {
-//        o_Target= vec4(
-//        vec3(0.01),
-//        1.0);
-//    }
+    //    if (hit) {
+    o_Target= vec4(
+    albedo,
+    1.0);
+    //    }
+    //    else {
+    //        o_Target= vec4(
+    //        vec3(0.01),
+    //        1.0);
+    //    }
 
 }
