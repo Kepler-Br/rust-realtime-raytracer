@@ -99,11 +99,12 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<CustomMaterial>>,
+    asset_server: Res<AssetServer>,
 ) {
     let resolution = Vec2::new(800.0, 600.0);
 
     let r_cam = RaymarchingCamera::new(
-        Vec3::new(5.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 0.0),
         Vec3::new(0.0, 0.0, 0.0),
         70.0 * PI / 180.0,
         resolution.y / resolution.x,
@@ -117,6 +118,7 @@ fn setup(
             screen_resolution: resolution,
             inverse_projection_view: r_cam.inversed_projection_view,
             camera_position: r_cam.position,
+            random_texture: Some(asset_server.load("textures/random.png")),
         }),
         ..default()
     });

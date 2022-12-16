@@ -19,6 +19,9 @@ pub struct CustomMaterial {
     #[uniform(0)]
     pub camera_position: Vec3,
     // alpha_mode: AlphaMode,
+    #[texture(1)]
+    #[sampler(2)]
+    pub random_texture: Option<Handle<Image>>,
 }
 
 /// The Material trait is very configurable, but comes with sensible defaults for all methods.

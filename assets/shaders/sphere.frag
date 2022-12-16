@@ -4,7 +4,7 @@ struct Sphere {
     int material_idx;
 };
 
-HitRecord hit_sphere(Sphere sphere, Ray ray, float t_min, float t_max, HitRecord record) {
+bool hit_sphere(Sphere sphere, Ray ray, float t_min, float t_max, out HitRecord record) {
     vec3 oc = ray.origin - sphere.center;
     float a = pow(length(ray.direction), 2.0);
     float half_b = dot(oc, ray.direction);
@@ -12,30 +12,31 @@ HitRecord hit_sphere(Sphere sphere, Ray ray, float t_min, float t_max, HitRecord
     float discriminant = half_b * half_b - a * c;
 
     if (discriminant < 0.0) {
-        return default_hit_record();
+        return false;
     }
 
     float sqrtd = sqrt(discriminant);
     float root = 0.0;
+
     if (root < t_min || root > t_max) {
         root = (-half_b + sqrtd) / a;
         if (root < t_min || root > t_max) {
-            return default_hit_record();
+            return false;
         }
     }
 
-    vec3 normal = (record.hit_point - sphere.center) / sphere.radius;
+    vec3 normal = (ray_get_at(ray, root) - sphere.center) / sphere.radius;
     bool is_front = dot(normal, record.normal) > 0.0;
 
     if (is_front) {
         normal = -normal;
     }
 
-    return HitRecord(
-        ray_get_at(ray, root),
-        normal,
-        root,
-        is_front,
-        true
-    );
+    record.hit_point = ray_get_at(ray, root);
+    record.normal = normal;
+    record.distance = root;
+    record.is_front_face = is_front;
+    record.material_idx = sphere.material_idx;
+
+    return true;
 }

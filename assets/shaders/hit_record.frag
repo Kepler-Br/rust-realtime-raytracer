@@ -4,6 +4,7 @@ struct HitRecord {
     float distance;
     bool is_front_face;
     bool hit;
+    int material_idx;
 };
 
 HitRecord default_hit_record() {
@@ -11,7 +12,8 @@ HitRecord default_hit_record() {
     vec3(0.0),
     vec3(0.0),
     0.0,
+    true,
     false,
-    false
+    0
     );
 }
