@@ -16,7 +16,7 @@ bool hit_sphere(Sphere sphere, Ray ray, float t_min, float t_max, out HitRecord 
     }
 
     float sqrtd = sqrt(discriminant);
-    float root = 0.0;
+    float root = (-half_b - sqrtd) / a;
 
     if (root < t_min || root > t_max) {
         root = (-half_b + sqrtd) / a;

@@ -1,9 +1,11 @@
+use std::borrow::BorrowMut;
 use std::f32::consts::PI;
 
 use bevy::input::mouse::MouseMotion;
 use bevy::math::Vec4Swizzles;
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
+use bevy::render::render_resource::{AddressMode, SamplerDescriptor};
 use bevy::sprite::{Material2dPlugin, MaterialMesh2dBundle};
 use bevy::window::WindowResized;
 use bevy::DefaultPlugins;
@@ -40,6 +42,16 @@ fn keyboard_input(
             cam.position -= right * 5.0 * time.delta().as_secs_f32();
         } else {
             cam.position += right * 5.0 * time.delta().as_secs_f32();
+        };
+    }
+
+    if keys.pressed(KeyCode::Space) || keys.pressed(KeyCode::LControl) {
+        let up = cam.view.row(1).xyz();
+
+        if keys.pressed(KeyCode::Space) {
+            cam.position += up * 5.0 * time.delta().as_secs_f32();
+        } else {
+            cam.position -= up * 5.0 * time.delta().as_secs_f32();
         };
     }
 
@@ -100,6 +112,7 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<CustomMaterial>>,
     asset_server: Res<AssetServer>,
+    mut images: ResMut<Assets<Image>>,
 ) {
     let resolution = Vec2::new(800.0, 600.0);
 
@@ -112,7 +125,7 @@ fn setup(
         30.0,
     );
 
-    commands.spawn(MaterialMesh2dBundle {
+    let mat = MaterialMesh2dBundle {
         mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
         material: materials.add(CustomMaterial {
             screen_resolution: resolution,
@@ -121,7 +134,19 @@ fn setup(
             random_texture: Some(asset_server.load("textures/random.png")),
         }),
         ..default()
-    });
+    };
+
+    // images.get_mut(&mat.material).unwrap().sampler_descriptor = ImageSampler::nearest();
+
+    commands.spawn(mat);
+    // commands.insert_resource(ImageSettings {
+    //     default_sampler: SamplerDescriptor {
+    //         address_mode_u: AddressMode::Repeat,
+    //         address_mode_v: AddressMode::Repeat,
+    //         address_mode_w: AddressMode::Repeat,
+    //         ..Default::default()
+    //     },
+    // });
 
     commands.spawn(r_cam);
 

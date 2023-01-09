@@ -23,12 +23,13 @@ struct Material {
 };
 
 vec3 unit_hemisphere(vec3 normal) {
-    float x = gl_FragCoord.x / screen_resolution.x/2.0;
-    float y = gl_FragCoord.y / screen_resolution.y/2.0;
+    float x = gl_FragCoord.x / screen_resolution.x / 2.0;
+    float y = gl_FragCoord.y / screen_resolution.y / 2.0;
     vec2 uv = vec2(x, y);
 
     vec4 outt = texture(sampler2D(CustomMaterial_texture, CustomMaterial_sampler), uv);
-    vec3 rand_sphere = outt.xyz * 2.0 - 1.0;
+    //    vec4 outt = texture(sampler2D(CustomMaterial_texture, CustomMaterial_sampler), vec2(0.0));
+    vec3 rand_sphere = normalize(outt.xyz);
 
     if (dot(rand_sphere, normal) < 0.0) {
         return -rand_sphere;
@@ -50,7 +51,7 @@ bool material_scatter(Material material, Ray ray, HitRecord hit_record, out vec3
 
     attenuation = material.albedo;
 
-    scattered = Ray(hit_record.hit_point, normalize(scatter_direction));
+    scattered = Ray(hit_record.hit_point, scatter_direction);
 
     return true;
 }
@@ -90,7 +91,7 @@ bool hit_scene(Ray ray, float t_min, float t_max, out HitRecord hit_record, in S
 
 void main() {
     Material[MATERIALS] materials = Material[](
-    Material(vec3(1.0, 0.0, 1.0)),
+    Material(vec3(0.0, 0.0, 1.0)),
     Material(vec3(1.0, 0.0, 0.0))
     );
 
@@ -107,14 +108,14 @@ void main() {
     direction
     );
 
-    float t_min = 0.001;
+    float t_min = 0.0001;
     float t_max = 99999.0;
 
     vec3 albedo = vec3(1.0);
     float closest = t_max;
-    HitRecord hit_record;
     //  bool hit_scene(Ray ray, float t_min, float t_max, out HitRecord hit_record, in Material materials[MATERIALS], in Sphere spheres[SPHERES]) {
-    for (int bounce_num = 0; bounce_num < 1; bounce_num++) {
+    for (int bounce_num = 0; bounce_num < 2; bounce_num++) {
+        HitRecord hit_record;
         if (hit_scene(ray, t_min, t_max, hit_record, spheres)) {
             Material material = materials[hit_record.material_idx];
             vec3 attenuation;
@@ -123,10 +124,10 @@ void main() {
             material_scatter(material, ray, hit_record, attenuation, scattered);
 
             ray = scattered;
-            albedo = hit_record.normal;
-//            albedo *= attenuation;
+            //            albedo *= hit_record.normal;
+            albedo *= attenuation;
         } else {
-            albedo = vec3(0.5);
+            albedo *= vec3(0.5);
             break;
         }
     }
