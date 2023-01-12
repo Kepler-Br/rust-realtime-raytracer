@@ -117,8 +117,8 @@ fn setup(
     let resolution = Vec2::new(800.0, 600.0);
 
     let r_cam = RaymarchingCamera::new(
-        Vec3::new(0.0, 0.0, 0.0),
-        Vec3::new(0.0, 0.0, 0.0),
+        Vec3::new(-3.0, 0.0, 0.0),
+        Vec3::new(0.0, 45.0/18.00*PI, 0.0),
         70.0 * PI / 180.0,
         resolution.y / resolution.x,
         20.0,

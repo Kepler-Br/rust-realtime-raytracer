@@ -1,11 +1,13 @@
 #version 450
 #define TABLE_SIZE 9
-#define MATERIALS 3
-#define SPHERES 3
-#define XZ_PLANES 2
+#define LAMBERTIAN_MATERIALS 3
+#define EMISSION_MATERIALS 1
+#define SPHERES 1
+#define XZ_PLANES 3
 #define XY_PLANES 2
 #define YZ_PLANES 1
 #define LAMBERTIAN_MATERIAL_TYPE 0
+#define EMISSION_MATERIAL_TYPE 1
 layout (location = 0) in vec2 v_Uv;
 
 layout (location = 0) out vec4 o_Target;
@@ -29,14 +31,21 @@ struct LambertianMaterial {
     vec3 albedo;
 };
 
+struct EmissionMaterial {
+    vec3 color;
+    float power;
+};
+
 struct Scene {
-    int totalMaterials;
+    int totalLambertianMaterials;
+    int totalEmissionMaterials;
     int totalSpheres;
     int totalXZPlanes;
     int totalXYPlanes;
     int totalYZPlanes;
 
-    LambertianMaterial[MATERIALS] lambertianMaterials;
+    LambertianMaterial[LAMBERTIAN_MATERIALS] lambertianMaterials;
+    EmissionMaterial[EMISSION_MATERIALS] emissionMaterials;
     Sphere[SPHERES] spheres;
     XyPlane[XY_PLANES] xyPlanes;
     XzPlane[XZ_PLANES] xzPlanes;
@@ -44,43 +53,44 @@ struct Scene {
 };
 
 Scene constructScene() {
-    LambertianMaterial[MATERIALS] lambertianMaterial = LambertianMaterial[](
-        LambertianMaterial(vec3(0.3, 0.3, 0.3)),
+    LambertianMaterial[LAMBERTIAN_MATERIALS] lambertianMaterials = LambertianMaterial[](
+        LambertianMaterial(vec3(0.5, 0.5, 0.3)),
         LambertianMaterial(vec3(1.0, 0.0, 0.0)),
-        LambertianMaterial(vec3(0.0, 0.0, 1.0))
+        LambertianMaterial(vec3(0.0, 1.0, 0.0))
+    );
+    EmissionMaterial[EMISSION_MATERIALS] emissionMaterials = EmissionMaterial[](
+        EmissionMaterial(vec3(1.0, 1.0, 1.0), 5.0)
     );
     Sphere[SPHERES] spheres = Sphere[](
-        Sphere(vec3(0.0, 1.0, -10.0), 1.0, 1, LAMBERTIAN_MATERIAL_TYPE),
-        Sphere(vec3(0.0, 1.0, -12.0), 1.0, 2, LAMBERTIAN_MATERIAL_TYPE),
-        //        Sphere(vec3(0.0, 205.0, -10.0), 200.0, 0)
-        Sphere(vec3(0.0, -200.0, -10.0), 200.0, 0, LAMBERTIAN_MATERIAL_TYPE)
-        //        Sphere(vec3(202.0, 0.0, -10.0), 200.0, 0),
-        //        Sphere(vec3(-202.0, 0.0, -10.0), 200.0, 0)
-        //        Sphere(vec3(0.0, 0.0, -10.0), 200.0, 0)
+        Sphere(vec3(0.0, -(1.0-0.5), 0.0), 0.5, 1, LAMBERTIAN_MATERIAL_TYPE)
     );
 
     XyPlane[XY_PLANES] xyPlanes = XyPlane[](
-        XyPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0), 1.0, 1, LAMBERTIAN_MATERIAL_TYPE),
+        XyPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0),  1.0, 2, LAMBERTIAN_MATERIAL_TYPE),
         XyPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0), -1.0, 1, LAMBERTIAN_MATERIAL_TYPE)
     );
 
     XzPlane[XZ_PLANES] xzPlanes = XzPlane[](
-        XzPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0), 1.0, 1, LAMBERTIAN_MATERIAL_TYPE),
-        XzPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0), -1.0, 1, LAMBERTIAN_MATERIAL_TYPE)
+        XzPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0), 1.0,          0, LAMBERTIAN_MATERIAL_TYPE),
+        XzPlane(vec2(-0.9, -0.9), vec2(0.9, 0.9), (1.0-0.01),   0, EMISSION_MATERIAL_TYPE),
+        XzPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0), -1.0,         0, LAMBERTIAN_MATERIAL_TYPE)
     );
 
     YzPlane[YZ_PLANES] yzPlanes = YzPlane[](
-        YzPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0), 1.0, 1, LAMBERTIAN_MATERIAL_TYPE)
+        YzPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0), 1.0, 0, LAMBERTIAN_MATERIAL_TYPE)
     );
 
     return Scene(
-        MATERIALS,
+        LAMBERTIAN_MATERIALS,
+        EMISSION_MATERIALS,
         SPHERES,
         XZ_PLANES,
         XY_PLANES,
         YZ_PLANES,
 
-        lambertianMaterial,
+        lambertianMaterials,
+        emissionMaterials,
+
         spheres,
         xyPlanes,
         xzPlanes,
@@ -103,7 +113,12 @@ vec3 unitHemisphere(vec3 normal) {
     }
 }
 
-bool lambertianMaterialScatter(LambertianMaterial material, Ray ray, HitRecord hitRecord, out vec3 attenuation, out Ray scattered) {
+bool lambertianMaterialScatter(LambertianMaterial material,
+    Ray ray,
+    HitRecord hitRecord,
+    out vec3 attenuation,
+    out Ray scattered) {
+
     vec3 correctedNormal;
 
     if (dot(ray.direction, hitRecord.normal) > 0.0) {
@@ -120,6 +135,16 @@ bool lambertianMaterialScatter(LambertianMaterial material, Ray ray, HitRecord h
     scattered = Ray(hitRecord.hitPoint, scatterDirection);
 
     return true;
+}
+
+bool emissionMaterialScatter(EmissionMaterial material,
+    Ray ray,
+    HitRecord hitRecord,
+    out vec3 attenuation,
+    out Ray scattered) {
+    attenuation = material.color * material.power;
+
+    return false;
 }
 
 vec3 screenToWorld()
@@ -205,19 +230,31 @@ void main() {
     vec3 albedo = vec3(1.0);
     float closest = tMax;
     bool absorbed = false;
-    vec3 worldColor = vec3(0.1);
-    for (int bounceNum = 0; bounceNum < 3; bounceNum++) {
+    vec3 worldColor = vec3(0.0);
+    for (int bounceNum = 0; bounceNum < 2; bounceNum++) {
         HitRecord hitRecord;
         if (hitScene(ray, tMin, tMax, hitRecord, scene)) {
-            LambertianMaterial material = scene.lambertianMaterials[hitRecord.materialIdx];
-            vec3 attenuation;
-            Ray scatteredRay;
+            if (hitRecord.materialType == LAMBERTIAN_MATERIAL_TYPE) {
+                LambertianMaterial material = scene.lambertianMaterials[hitRecord.materialIdx];
+                vec3 attenuation;
+                Ray scatteredRay;
 
-            lambertianMaterialScatter(material, ray, hitRecord, attenuation, scatteredRay);
-            hitRecord.normal = -hitRecord.normal;
+                lambertianMaterialScatter(material, ray, hitRecord, attenuation, scatteredRay);
+                hitRecord.normal = -hitRecord.normal;
 
-            ray = scatteredRay;
-            albedo *= attenuation;
+                ray = scatteredRay;
+                albedo *= attenuation;
+            } else if (hitRecord.materialType == EMISSION_MATERIAL_TYPE) {
+                EmissionMaterial material = scene.emissionMaterials[hitRecord.materialIdx];
+                vec3 attenuation;
+                Ray scatteredRay;
+
+                emissionMaterialScatter(material, ray, hitRecord, attenuation, scatteredRay);
+
+                albedo *= attenuation;
+
+                absorbed = true;
+            }
         } else {
             albedo *= worldColor;
             absorbed = true;
