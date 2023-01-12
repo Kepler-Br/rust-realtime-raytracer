@@ -1,14 +1,18 @@
 #version 450
 #define TABLE_SIZE 9
-#define MATERIALS 2
-#define SPHERES 2
+#define MATERIALS 3
+#define SPHERES 3
+#define XZ_PLANES 2
+#define XY_PLANES 2
+#define YZ_PLANES 1
+#define LAMBERTIAN_MATERIAL_TYPE 0
 layout (location = 0) in vec2 v_Uv;
 
 layout (location = 0) out vec4 o_Target;
 layout (set = 1, binding = 0) uniform CustomMaterial {
-    vec2 screen_resolution;
-    mat4 inverse_projection_view;
-    vec3 camera_position;
+    vec2 screenResolution;
+    mat4 inverseProjectionView;
+    vec3 cameraPosition;
 };
 
 layout(set = 1, binding = 1) uniform texture2D CustomMaterial_texture;
@@ -17,122 +21,215 @@ layout(set = 1, binding = 2) uniform sampler CustomMaterial_sampler;
 #import "shaders/ray.frag"
 #import "shaders/hit_record.frag"
 #import "shaders/sphere.frag"
+#import "shaders/xy_plane.frag"
+#import "shaders/xz_plane.frag"
+#import "shaders/yz_plane.frag"
 
-struct Material {
+struct LambertianMaterial {
     vec3 albedo;
 };
 
-vec3 unit_hemisphere(vec3 normal) {
-    float x = gl_FragCoord.x / screen_resolution.x / 2.0;
-    float y = gl_FragCoord.y / screen_resolution.y / 2.0;
-    vec2 uv = vec2(x, y);
+struct Scene {
+    int totalMaterials;
+    int totalSpheres;
+    int totalXZPlanes;
+    int totalXYPlanes;
+    int totalYZPlanes;
 
-    vec4 outt = texture(sampler2D(CustomMaterial_texture, CustomMaterial_sampler), uv);
-    //    vec4 outt = texture(sampler2D(CustomMaterial_texture, CustomMaterial_sampler), vec2(0.0));
-    vec3 rand_sphere = normalize(outt.xyz);
+    LambertianMaterial[MATERIALS] lambertianMaterials;
+    Sphere[SPHERES] spheres;
+    XyPlane[XY_PLANES] xyPlanes;
+    XzPlane[XZ_PLANES] xzPlanes;
+    YzPlane[YZ_PLANES] yzPlanes;
+};
 
-    if (dot(rand_sphere, normal) < 0.0) {
-        return -rand_sphere;
+Scene constructScene() {
+    LambertianMaterial[MATERIALS] lambertianMaterial = LambertianMaterial[](
+        LambertianMaterial(vec3(0.3, 0.3, 0.3)),
+        LambertianMaterial(vec3(1.0, 0.0, 0.0)),
+        LambertianMaterial(vec3(0.0, 0.0, 1.0))
+    );
+    Sphere[SPHERES] spheres = Sphere[](
+        Sphere(vec3(0.0, 1.0, -10.0), 1.0, 1, LAMBERTIAN_MATERIAL_TYPE),
+        Sphere(vec3(0.0, 1.0, -12.0), 1.0, 2, LAMBERTIAN_MATERIAL_TYPE),
+        //        Sphere(vec3(0.0, 205.0, -10.0), 200.0, 0)
+        Sphere(vec3(0.0, -200.0, -10.0), 200.0, 0, LAMBERTIAN_MATERIAL_TYPE)
+        //        Sphere(vec3(202.0, 0.0, -10.0), 200.0, 0),
+        //        Sphere(vec3(-202.0, 0.0, -10.0), 200.0, 0)
+        //        Sphere(vec3(0.0, 0.0, -10.0), 200.0, 0)
+    );
+
+    XyPlane[XY_PLANES] xyPlanes = XyPlane[](
+        XyPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0), 1.0, 1, LAMBERTIAN_MATERIAL_TYPE),
+        XyPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0), -1.0, 1, LAMBERTIAN_MATERIAL_TYPE)
+    );
+
+    XzPlane[XZ_PLANES] xzPlanes = XzPlane[](
+        XzPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0), 1.0, 1, LAMBERTIAN_MATERIAL_TYPE),
+        XzPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0), -1.0, 1, LAMBERTIAN_MATERIAL_TYPE)
+    );
+
+    YzPlane[YZ_PLANES] yzPlanes = YzPlane[](
+        YzPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0), 1.0, 1, LAMBERTIAN_MATERIAL_TYPE)
+    );
+
+    return Scene(
+        MATERIALS,
+        SPHERES,
+        XZ_PLANES,
+        XY_PLANES,
+        YZ_PLANES,
+
+        lambertianMaterial,
+        spheres,
+        xyPlanes,
+        xzPlanes,
+        yzPlanes
+    );
+}
+
+vec3 unitHemisphere(vec3 normal) {
+    float x = gl_FragCoord.x / screenResolution.x / 2.0;
+    float y = gl_FragCoord.y / screenResolution.y / 2.0;
+    vec2 uv = vec2(x, y)*10.0;
+
+    vec4 outt = texture(sampler2D(CustomMaterial_texture, CustomMaterial_sampler), fract(uv));
+    vec3 ranDsphere = normalize(outt.xyz - 0.5);
+
+    if (dot(ranDsphere, normal) < 0.0) {
+        return -ranDsphere;
     } else {
-        return rand_sphere;
+        return ranDsphere;
     }
 }
 
-bool material_scatter(Material material, Ray ray, HitRecord hit_record, out vec3 attenuation, out Ray scattered) {
-    vec3 corrected_normal;
+bool lambertianMaterialScatter(LambertianMaterial material, Ray ray, HitRecord hitRecord, out vec3 attenuation, out Ray scattered) {
+    vec3 correctedNormal;
 
-    if (dot(ray.direction, hit_record.normal) > 0.0) {
-        corrected_normal = -hit_record.normal;
+    if (dot(ray.direction, hitRecord.normal) > 0.0) {
+        correctedNormal = -hitRecord.normal;
     } else {
-        corrected_normal = hit_record.normal;
+        correctedNormal = hitRecord.normal;
     }
 
-    vec3 scatter_direction = unit_hemisphere(corrected_normal);
+    // Raytracing ray direction bias towards left because of bad random picture
+    vec3 scatterDirection = unitHemisphere(correctedNormal);
 
     attenuation = material.albedo;
 
-    scattered = Ray(hit_record.hit_point, scatter_direction);
+    scattered = Ray(hitRecord.hitPoint, scatterDirection);
 
     return true;
 }
 
-vec3 screen_to_world()
+vec3 screenToWorld()
 {
     // NORMALISED DEVICE SPACE
-    float x = gl_FragCoord.x / screen_resolution.x - 1.0;
-    float y = gl_FragCoord.y / screen_resolution.y - 1.0;
+    float x = gl_FragCoord.x / screenResolution.x - 1.0;
+    float y = gl_FragCoord.y / screenResolution.y - 1.0;
 
     // HOMOGENEOUS SPACE
     vec4 screenPos = vec4(x, -y, -1.0f, 1.0f);
 
-    vec4 worldPos = inverse_projection_view * screenPos;
+    vec4 worldPos = inverseProjectionView * screenPos;
     return normalize(vec3(worldPos));
 }
 
-bool hit_scene(Ray ray, float t_min, float t_max, out HitRecord hit_record, in Sphere spheres[SPHERES]) {
-    HitRecord temp_hit_record = default_hit_record();
-    bool hit_anything = false;
-    float closest = t_max;
+bool hitScene(Ray ray, float tMin, float tMax, out HitRecord hitRecord, in Scene scene) {
+    HitRecord tempHitRecord;
+    bool hitAnything = false;
+    float closest = tMax;
 
-    for (int i = 0; i < SPHERES; i++) {
-        if (hit_sphere(spheres[i], ray, t_min, t_max, temp_hit_record)) {
-            hit_anything = true;
+    for (int i = 0; i < scene.totalSpheres; i++) {
+        if (hitSphere(scene.spheres[i], ray, tMin, tMax, tempHitRecord)) {
+            if (closest > tempHitRecord.distance) {
+                closest = tempHitRecord.distance;
 
-            if (closest > temp_hit_record.distance) {
-                closest = temp_hit_record.distance;
-
-                hit_record = temp_hit_record;
+                hitRecord = tempHitRecord;
+                hitAnything = true;
             }
         }
     }
 
-    return hit_anything;
+    for (int i = 0; i < scene.totalXYPlanes; i++) {
+        if (hitXyPlane(scene.xyPlanes[i], ray, tMin, tMax, tempHitRecord)) {
+            if (closest > tempHitRecord.distance) {
+                closest = tempHitRecord.distance;
+
+                hitRecord = tempHitRecord;
+                hitAnything = true;
+            }
+        }
+    }
+
+    for (int i = 0; i < scene.totalXZPlanes; i++) {
+        if (hitXzPlane(scene.xzPlanes[i], ray, tMin, tMax, tempHitRecord)) {
+            if (closest > tempHitRecord.distance) {
+                closest = tempHitRecord.distance;
+
+                hitRecord = tempHitRecord;
+                hitAnything = true;
+            }
+        }
+    }
+
+    for (int i = 0; i < scene.totalYZPlanes; i++) {
+        if (hitYzPlane(scene.yzPlanes[i], ray, tMin, tMax, tempHitRecord)) {
+            if (closest > tempHitRecord.distance) {
+                closest = tempHitRecord.distance;
+
+                hitRecord = tempHitRecord;
+                hitAnything = true;
+            }
+        }
+    }
+
+    return hitAnything;
 }
 
+
+
 void main() {
-    Material[MATERIALS] materials = Material[](
-    Material(vec3(0.0, 0.0, 1.0)),
-    Material(vec3(1.0, 0.0, 0.0))
-    );
+    Scene scene = constructScene();
 
-    Sphere[SPHERES] spheres = Sphere[](
-    Sphere(vec3(0.0, 1.0, -10.0), 1.0, 1),
-    Sphere(vec3(0.0, -10.0, -10.0), 10.0, 0)
-    );
-
-    vec3 direction = screen_to_world();
-
+    vec3 direction = screenToWorld();
 
     Ray ray = Ray(
-    camera_position,
-    direction
+        cameraPosition,
+        direction
     );
 
-    float t_min = 0.0001;
-    float t_max = 99999.0;
+    float tMin = 0.0001;
+    float tMax = 99999.0;
 
     vec3 albedo = vec3(1.0);
-    float closest = t_max;
-    //  bool hit_scene(Ray ray, float t_min, float t_max, out HitRecord hit_record, in Material materials[MATERIALS], in Sphere spheres[SPHERES]) {
-    for (int bounce_num = 0; bounce_num < 2; bounce_num++) {
-        HitRecord hit_record;
-        if (hit_scene(ray, t_min, t_max, hit_record, spheres)) {
-            Material material = materials[hit_record.material_idx];
+    float closest = tMax;
+    bool absorbed = false;
+    vec3 worldColor = vec3(0.1);
+    for (int bounceNum = 0; bounceNum < 3; bounceNum++) {
+        HitRecord hitRecord;
+        if (hitScene(ray, tMin, tMax, hitRecord, scene)) {
+            LambertianMaterial material = scene.lambertianMaterials[hitRecord.materialIdx];
             vec3 attenuation;
-            Ray scattered;
+            Ray scatteredRay;
 
-            material_scatter(material, ray, hit_record, attenuation, scattered);
+            lambertianMaterialScatter(material, ray, hitRecord, attenuation, scatteredRay);
+            hitRecord.normal = -hitRecord.normal;
 
-            ray = scattered;
-            //            albedo *= hit_record.normal;
+            ray = scatteredRay;
             albedo *= attenuation;
         } else {
-            albedo *= vec3(0.5);
+            albedo *= worldColor;
+            absorbed = true;
             break;
         }
     }
 
+    if (!absorbed) {
+        albedo = albedo * 0.0;
+    }
+
     o_Target = vec4(
-    albedo,
-    1.0);
+        albedo,
+        1.0);
 }

@@ -1,19 +1,21 @@
 struct HitRecord {
-    vec3 hit_point;
+    vec3 hitPoint;
     vec3 normal;
     float distance;
-    bool is_front_face;
+    bool isFrontFace;
     bool hit;
-    int material_idx;
+    int materialIdx;
+    int materialType;
 };
 
-HitRecord default_hit_record() {
+HitRecord defaultHitRecord() {
     return HitRecord(
-    vec3(0.0),
-    vec3(0.0),
-    0.0,
-    true,
-    false,
-    0
+        vec3(0.0),
+        vec3(0.0),
+        0.0,
+        true,
+        false,
+        0,
+        0
     );
 }

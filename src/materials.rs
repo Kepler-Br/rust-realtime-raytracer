@@ -1,12 +1,14 @@
+use bevy::pbr::{MaterialPipeline, MaterialPipelineKey};
+use bevy::render::mesh::MeshVertexBufferLayout;
+use bevy::render::render_resource::{
+    RenderPipelineDescriptor, SamplerDescriptor, SpecializedMeshPipelineError,
+};
+use bevy::sprite::{Material2d, Material2dKey};
 use bevy::{
     prelude::*,
     reflect::TypeUuid,
     render::render_resource::{AsBindGroup, ShaderRef},
 };
-use bevy::pbr::{MaterialPipeline, MaterialPipelineKey};
-use bevy::render::mesh::MeshVertexBufferLayout;
-use bevy::render::render_resource::{RenderPipelineDescriptor, SamplerDescriptor, SpecializedMeshPipelineError};
-use bevy::sprite::{Material2d, Material2dKey};
 
 // This is the struct that will be passed to your shader
 #[derive(AsBindGroup, TypeUuid, Debug, Clone)]
@@ -50,6 +52,7 @@ impl Material2d for CustomMaterial {
     ) -> Result<(), SpecializedMeshPipelineError> {
         descriptor.vertex.entry_point = "main".into();
         descriptor.fragment.as_mut().unwrap().entry_point = "main".into();
+
         Ok(())
     }
 }
