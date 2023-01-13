@@ -15,6 +15,7 @@ use crate::raymarching_camera::RaymarchingCamera;
 
 mod materials;
 mod raymarching_camera;
+use rand::Rng;
 
 fn keyboard_input(
     keys: Res<Input<KeyCode>>,
@@ -80,6 +81,7 @@ fn cursor_moved(
             let mut material = materials.get_mut(material_handle).unwrap();
 
             material.inverse_projection_view = cam.inversed_projection_view;
+            material.rand_float = rand::random();
         }
     }
 }
@@ -107,6 +109,16 @@ fn window_resized(
     }
 }
 
+fn update_material_rand(
+    mut materials: ResMut<Assets<CustomMaterial>>,
+    query: Query<&mut Handle<CustomMaterial>>,
+) {
+    for material_handle in query.iter() {
+        let mut material = materials.get_mut(material_handle).unwrap();
+
+        material.rand_float = rand::random();
+    }
+}
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -129,6 +141,7 @@ fn setup(
         mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
         material: materials.add(CustomMaterial {
             screen_resolution: resolution,
+            rand_float: rand::random(),
             inverse_projection_view: r_cam.inversed_projection_view,
             camera_position: r_cam.position,
             random_texture: Some(asset_server.load("textures/random.png")),
@@ -170,6 +183,7 @@ fn main() {
         .add_startup_system(setup)
         .add_plugins(DefaultPlugins)
         .add_system(window_resized)
+        .add_system(update_material_rand)
         .add_system(cursor_moved)
         .add_system(keyboard_input)
         .add_plugin(Material2dPlugin::<CustomMaterial>::default())

@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 bevy = { version = "0.9", features = ["dynamic"] }
 ncurses = "5"
+rand = "0.8"
 
 [workspace]
 resolver = "2"

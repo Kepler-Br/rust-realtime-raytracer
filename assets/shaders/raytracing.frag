@@ -1,10 +1,10 @@
 #version 450
 #define TABLE_SIZE 9
 #define LAMBERTIAN_MATERIALS 3
-#define EMISSION_MATERIALS 1
+#define EMISSION_MATERIALS 3
 #define SPHERES 1
-#define XZ_PLANES 3
-#define XY_PLANES 2
+#define XZ_PLANES 2
+#define XY_PLANES 4
 #define YZ_PLANES 1
 #define LAMBERTIAN_MATERIAL_TYPE 0
 #define EMISSION_MATERIAL_TYPE 1
@@ -13,6 +13,7 @@ layout (location = 0) in vec2 v_Uv;
 layout (location = 0) out vec4 o_Target;
 layout (set = 1, binding = 0) uniform CustomMaterial {
     vec2 screenResolution;
+    float rand_float;
     mat4 inverseProjectionView;
     vec3 cameraPosition;
 };
@@ -59,7 +60,9 @@ Scene constructScene() {
         LambertianMaterial(vec3(0.0, 1.0, 0.0))
     );
     EmissionMaterial[EMISSION_MATERIALS] emissionMaterials = EmissionMaterial[](
-        EmissionMaterial(vec3(1.0, 1.0, 1.0), 5.0)
+        EmissionMaterial(vec3(1.0, 1.0, 1.0), 5.0),
+        EmissionMaterial(vec3(1.0, 1.0, 0.8), 1.0),
+        EmissionMaterial(vec3(0.8, 1.0, 1.0), 1.0)
     );
     Sphere[SPHERES] spheres = Sphere[](
         Sphere(vec3(0.0, -(1.0-0.5), 0.0), 0.5, 1, LAMBERTIAN_MATERIAL_TYPE)
@@ -67,12 +70,15 @@ Scene constructScene() {
 
     XyPlane[XY_PLANES] xyPlanes = XyPlane[](
         XyPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0),  1.0, 2, LAMBERTIAN_MATERIAL_TYPE),
-        XyPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0), -1.0, 1, LAMBERTIAN_MATERIAL_TYPE)
+        XyPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0), -1.0, 1, LAMBERTIAN_MATERIAL_TYPE),
+
+        XyPlane(vec2(-0.9, -0.9), vec2(0.9, 0.9), -(1.0-0.01), 1, EMISSION_MATERIAL_TYPE),
+        XyPlane(vec2(-0.9, -0.9), vec2(0.9, 0.9), (1.0-0.01), 2, EMISSION_MATERIAL_TYPE)
     );
 
     XzPlane[XZ_PLANES] xzPlanes = XzPlane[](
         XzPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0), 1.0,          0, LAMBERTIAN_MATERIAL_TYPE),
-        XzPlane(vec2(-0.9, -0.9), vec2(0.9, 0.9), (1.0-0.01),   0, EMISSION_MATERIAL_TYPE),
+//        XzPlane(vec2(-0.9, -0.9), vec2(0.9, 0.9), (1.0-0.01),   0, EMISSION_MATERIAL_TYPE),
         XzPlane(vec2(-1.0, -1.0), vec2(1.0, 1.0), -1.0,         0, LAMBERTIAN_MATERIAL_TYPE)
     );
 
@@ -101,15 +107,15 @@ Scene constructScene() {
 vec3 unitHemisphere(vec3 normal) {
     float x = gl_FragCoord.x / screenResolution.x / 2.0;
     float y = gl_FragCoord.y / screenResolution.y / 2.0;
-    vec2 uv = vec2(x, y)*10.0;
+    vec2 uv = vec2(x, y)*5.0+rand_float;
 
     vec4 outt = texture(sampler2D(CustomMaterial_texture, CustomMaterial_sampler), fract(uv));
-    vec3 ranDsphere = normalize(outt.xyz - 0.5);
+    vec3 randSphere = normalize(outt.xyz - 0.5);
 
-    if (dot(ranDsphere, normal) < 0.0) {
-        return -ranDsphere;
+    if (dot(randSphere, normal) < 0.0) {
+        return -randSphere;
     } else {
-        return ranDsphere;
+        return randSphere;
     }
 }
 

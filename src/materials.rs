@@ -17,6 +17,8 @@ pub struct CustomMaterial {
     #[uniform(0)]
     pub screen_resolution: Vec2,
     #[uniform(0)]
+    pub rand_float: f32,
+    #[uniform(0)]
     pub inverse_projection_view: Mat4,
     #[uniform(0)]
     pub camera_position: Vec3,
